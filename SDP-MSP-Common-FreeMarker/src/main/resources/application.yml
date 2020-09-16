@@ -1,0 +1,5 @@
+spring:
+  application:
+    name: FreeMarker
+  profiles:
+    active: service
