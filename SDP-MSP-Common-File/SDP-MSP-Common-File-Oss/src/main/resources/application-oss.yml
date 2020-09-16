@@ -1,0 +1,22 @@
+spring:
+  servlet:
+    multipart:
+      max-file-size: 100MB
+      max-request-size: 100MB
+common:
+  file:
+    native:
+      upload-path: /usr/local/java/upload/
+    oss:
+      url: http://top-stock.oss-cn-hangzhou.aliyuncs.com/
+      endpoint: http://oss-cn-hangzhou.aliyuncs.com
+      access-keyid: LTAIg1cbWpjxNKuT
+      access-keysecret: SuHuzgrMqIrS20Nyv9OFX6zmC6vWJH
+      bucket-name: top-stock
+
+
+
+
+
+
+
