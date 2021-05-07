@@ -115,7 +115,7 @@ public class FileService implements FileApi {
         // 返回格式为[原文件名字, fastdfs 中的 key; 原文件名字, fastdfs 中的 key; ....]
         Set<String> set = new HashSet<>();
         for (Map.Entry<String, String> entry : filePaths.entrySet()) {
-            set.add(entry.getValue() + "," + entry.getValue());
+            set.add(entry.getKey() + "," + entry.getValue());
             // 只会返回 fastdfs 的 keys, 不包含原文件名字
             //set.add(entry.getValue());
         }
