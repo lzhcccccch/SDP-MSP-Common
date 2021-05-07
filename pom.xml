@@ -13,6 +13,9 @@
         <module>SDP-MSP-Common-File</module>
         <module>SDP-MSP-Common-Mysql</module>
         <module>SDP-MSP-Common-Redis</module>
+        <module>SDP-MSP-Common-JPA</module>
+        <module>SDP-MSP-Common-Global</module>
+        <module>SDP-MSP-Common-Exception</module>
     </modules>
 
     <packaging>pom</packaging>
