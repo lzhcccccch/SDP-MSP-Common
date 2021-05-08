@@ -1,99 +1,89 @@
 package com.lzhch.commom.redis;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
-import org.springframework.util.StringUtils;
+
+import java.util.concurrent.TimeUnit;
 
 /**
  * @packageName： com.lzhch.commom.redis
  * @className: RedisLock
- * @description: TODO
+ * @description: 基于 StringRedisTemplate 实现 redis 分布式锁
  * @version: v1.0
  * @author: liuzhichao
- * @date: 2020-09-03 10:41
+ * @date: 2020-11-16 15:34
  */
 @Component
-@ConditionalOnProperty(prefix = "edw.sdp.spring.redis", name = "isLock", havingValue = "true")
 public class RedisLock {
+
+    /**
+     *  redis 锁前缀
+     */
+    private static String LOCK_PREFIX = "redisLock_";
+
+    /**
+     *  默认超时时间 10s
+     */
+    private static Long TIME_OUT = 10000L;
 
     @Autowired
     private StringRedisTemplate stringredisTemplate;
 
     /**
-     * 锁过期时间,精确到毫秒
+     * @description: redis 锁
+     * @param: [key]
+     * @return: boolean
+     * @author: liuzhichao 2021-05-07 17:21
      */
-    @Value("${edw.sdp.spring.redis.timeoutMsecs}")
-    private String timeoutMsecs;
-    /**
-     * 锁后缀
-     */
-    @Value("${edw.sdp.spring.redis.lockSuf}")
-    private String lockSuf;
-
-    /**
-     * 加锁,重载,不设置过时时间则采用默认值10*1000ms;
-     * 已过时
-     * @param lockKey
-     * @return
-     */
-    public synchronized String lock(String lockKey) {
-        String timeoutMsecs = String.valueOf(Long.parseLong(this.timeoutMsecs)+System.currentTimeMillis());
-        if( this.lock(lockKey, timeoutMsecs) ) {
-            return timeoutMsecs;
-        }
-        return null;
-    }
-
-    public synchronized boolean lock(String lockKey, String timeoutMsecs) {
-        //超时时间早于当前时间,不能加锁
-        if ( Long.parseLong(timeoutMsecs) < System.currentTimeMillis() ) {
-            return false;
-        }
-        lockKey = lockKey + lockSuf;
-        String timeout = timeoutMsecs;
-        if (stringredisTemplate.opsForValue().setIfAbsent(lockKey, timeout)) {
-            return true;
-        }
-        String currentValue = (String) stringredisTemplate.opsForValue().get(lockKey);
-        if ( !StringUtils.isEmpty(currentValue) && Long.parseLong(currentValue) < System.currentTimeMillis() ) {
-            String oldValue = (String) stringredisTemplate.opsForValue().getAndSet(lockKey, timeout);
-            if (oldValue != null && oldValue.equals(currentValue)) {
-                return true;
-            }
-        }
-        try {
-            //采用随机值(0,1)*100ms
-            Thread.sleep((int)Math.random()*100);
-        } catch (InterruptedException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-        }
-        return false;
+    public boolean lock(String key) {
+        return this.lock(key, LOCK_PREFIX);
     }
 
     /**
-     * 解锁 已过时
+     * @description: redis 锁
+     * @param: [key: key, value: 可以传一组 uuid 用来标识唯一请求]
+     * @return: boolean
+     * @author: liuzhichao 2021-05-07 17:22
      */
-    @Deprecated
-    public synchronized void unlock(String lockKey) {
-        lockKey = lockKey + lockSuf;
-        stringredisTemplate.opsForValue().getOperations().delete(lockKey);
+    public boolean lock(String key, String value) {
+        return this.lock(key, value, TIME_OUT);
     }
 
     /**
-     *
-     * @param lockKey
-     * @param timeoutMsecs 超时时间与加锁时的值一样
+     * @description: redis 锁
+     * @param: [key: key, value: 可以传一组 uuid 用来标识唯一请求, timeout: 超时时间,单位毫秒]
+     * @return: boolean
+     * @author: liuzhichao 2021-05-07 17:23
      */
-    public synchronized void unlock(String lockKey, String timeoutMsecs) {
-        lockKey = lockKey + lockSuf;
-        String currentValue = (String) stringredisTemplate.opsForValue().get(lockKey);
-        if ( !StringUtils.isEmpty(currentValue) && currentValue.equals(timeoutMsecs) ) {
-            stringredisTemplate.opsForValue().getOperations().delete(lockKey);
-        }
+    public boolean lock(String key, String value, long timeout) {
+        return this.lock(key, value, timeout, TimeUnit.MILLISECONDS);
+    }
+
+    /**
+     * @description: redis 锁
+     * @param: [key: key, value: 可以传一组 uuid 用来标识唯一请求, timeout: 超时时间,单位毫秒, timeUnit: 时间单位]
+     * @return: boolean
+     * @author: liuzhichao 2021-05-07 17:23
+     */
+    public boolean lock(String key, String value, long timeout, TimeUnit timeUnit) {
+        key = LOCK_PREFIX + key;
+        // setIfPresent() 方法是存在 key 时,修改 key 的值
+        //Boolean success = stringredisTemplate.opsForValue().setIfPresent(key, value, timeout, timeUnit);
+        Boolean success = stringredisTemplate.opsForValue().setIfAbsent(key, value, timeout, timeUnit);
+        return success!=null && success;
+    }
+
+    /**
+     * @description: 释放 redis 锁
+     * @param: [key] key
+     * @return: boolean
+     * @author: liuzhichao 2021-05-07 17:33
+     */
+    public boolean unlock(String key) {
+        key = LOCK_PREFIX + key;
+        Boolean success = stringredisTemplate.delete(key);
+        return success!=null && success;
     }
 
 }
