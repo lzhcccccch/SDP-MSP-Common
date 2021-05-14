@@ -3,6 +3,7 @@ package com.lzhch.commom.redis;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
+import org.springframework.util.Assert;
 import org.springframework.util.CollectionUtils;
 
 import java.util.HashMap;
@@ -15,7 +16,7 @@ import java.util.concurrent.TimeUnit;
 /**
  * @packageName： com.lzhch.commom.redis
  * @className: RedisCache
- * @description:  操作Redis缓存工具类, 封装StringRedisTemplate对象
+ * @description: 操作Redis缓存工具类, 封装StringRedisTemplate对象
  * @version: v1.0
  * @author: liuzhichao
  * @date: 2020-09-03 10:14
@@ -27,166 +28,169 @@ public class RedisCache {
     StringRedisTemplate stringRedisTemplate;
 
     // =============================common============================
+
     /**
-     * 指定缓存失效时间,时间需>0
-     * @param key  键
-     * @param time 时间(秒)
-     * @return
+     * @description: 指定 key 失效时间
+     * @param: [key, time: time>0 单位: 毫秒]
+     * @return: java.lang.Boolean
+     * @author: liuzhichao 2021-05-08 16:26
      */
-    public Boolean expire(String key, Long time) {
-        try {
-            if (time > 0) {
-                stringRedisTemplate.expire(key, time, TimeUnit.SECONDS);
-            }
-            return true;
-        } catch (Exception e) {
-            e.printStackTrace();
-            return false;
+    public Boolean expire(String key, long time) {
+        Assert.notNull(key, "redis key can not be null");
+        if (time <= 0) {
+            throw new IllegalArgumentException("time must be greater than zero");
         }
+        return stringRedisTemplate.expire(key, time, TimeUnit.MILLISECONDS);
     }
 
     /**
-     * 根据key 获取过期时间
-     * @param key 键 不能为null
-     * @return 时间(秒) 返回0代表为永久有效
+     * @description: 查看 key 还有多久过期,单位:毫秒
+     * @param: [key]
+     * @return: java.lang.Long 返回 -1 表示永不过期
+     * @author: liuzhichao 2021-05-08 16:45
      */
     public Long getExpire(String key) {
-        if (key!=null && !"".equals(key)) {
-            return stringRedisTemplate.getExpire(key, TimeUnit.SECONDS);
-        }
-        return 0L;
+        Assert.notNull(key, "redis key can not be null");
+        return stringRedisTemplate.getExpire(key, TimeUnit.MILLISECONDS);
     }
 
     /**
-     * 判断key是否存在
-     * @param key 键
-     * @return true 存在 false不存在
+     * @description: 判断 key 是否存在
+     * @param: [key]
+     * @return: java.lang.Boolean true 存在; false 不存在
+     * @author: liuzhichao 2021-05-08 16:58
      */
     public Boolean hasKey(String key) {
-        try {
-            return stringRedisTemplate.hasKey(key);
-        } catch (Exception e) {
-            e.printStackTrace();
-            return false;
-        }
+        Assert.notNull(key, "redis key can not be null");
+        return stringRedisTemplate.hasKey(key);
     }
 
     /**
-     * 删除缓存
-     * @param key 可以传一个值或多个
+     * @description: 删除 key, 可批量
+     * @param: [key] 单个或多个 key
+     * @return: java.lang.Long 返回的是删除的 key 的个数
+     * @author: liuzhichao 2021-05-08 16:59
      */
-    @SuppressWarnings("unchecked")
-    public void del(String... key) {
-        if (key != null && key.length > 0) {
-            if (key.length == 1) {
-                stringRedisTemplate.delete(key[0]);
-            } else {
-                stringRedisTemplate.delete(CollectionUtils.arrayToList(key));
-            }
-        }
+    public Long del(String... key) {
+        Assert.notNull(key, "redis key can not be null");
+        return stringRedisTemplate.delete(CollectionUtils.arrayToList(key));
     }
 
     // ============================String=============================
-    /**
-     * 普通缓存获取
-     * @param key 键
-     * @return 值
-     */
-    public String get(String key) {
-        return key == null ? null : stringRedisTemplate.opsForValue().get(key);
-    }
 
     /**
-     * 普通缓存放入,不过期
-     * @param key   键
-     * @param value 值
-     * @return true成功 false失败
-     */
-    public Boolean set(String key, String value) {
-        try {
-            System.out.println(stringRedisTemplate == null);
-            stringRedisTemplate.opsForValue().set(key, value);
-            return true;
-        } catch (Exception e) {
-            e.printStackTrace();
-            return false;
-        }
-    }
-
-    /**
-     * 普通缓存放入并设置时间
-     * @param key   键
-     * @param value 值
-     * @param time  时间(秒) time要大于0 如果time小于等于0 将设置无限期
-     * @return true成功 false 失败
-     */
-    public Boolean set(String key, String value, Long time) {
-        try {
-            if (time > 0) {
-                stringRedisTemplate.opsForValue().set(key, value, time, TimeUnit.SECONDS);
-                expire(key,time);
-            } else {
-                set(key, value);
-            }
-            return true;
-        } catch (Exception e) {
-            e.printStackTrace();
-            return false;
-        }
-    }
-
-    /**
-     * 值递增
-     * @param key 键
-     * @param by  要增加几(大于0)
+     * 根据 key 获取值
+     *
+     * @param key
      * @return
      */
-    public Long incr(String key, Long delta) {
-        if (delta < 0) {
-            throw new RuntimeException("递增因子必须大于0");
+    public String get(String key) {
+        Assert.notNull(key, "redis key can not be null");
+        return stringRedisTemplate.opsForValue().get(key);
+    }
+
+    /**
+     * @description: 存放 key 和 value 永不过期
+     * @param: [key, value]
+     * @return: java.lang.Boolean
+     * @author: liuzhichao 2021-05-08 17:19
+     */
+    public Boolean set(String key, String value) {
+        Assert.notNull(key, "redis key can not be null");
+        stringRedisTemplate.opsForValue().set(key, value);
+        return true;
+    }
+
+    /**
+     * @description: 存放 key 和 value 并设置超时时间 单位:秒
+     * @param: [key, value, time: 超时时间, 单位: 秒]
+     * @return: java.lang.Boolean
+     * @author: liuzhichao 2021-05-08 17:23
+     */
+    public Boolean set(String key, String value, long time) {
+        Assert.notNull(key, "redis key can not be null");
+        if (time > 0) {
+            stringRedisTemplate.opsForValue().set(key, value, time, TimeUnit.SECONDS);
+            return true;
+        }
+        return this.set(key, value);
+    }
+
+    /**
+     * @description: 将 key 所对应的 value 进行自增 自增因子为 1
+     * @param: [key]
+     * @return: java.lang.Long 返回的是自增后的 value 的值
+     * @author: liuzhichao 2021-05-08 17:31
+     */
+    public Long incr(String key) {
+        return stringRedisTemplate.opsForValue().increment(key);
+    }
+
+    /**
+     * @description: 将 key 所对应的 value 进行自增
+     * @param: [key, delta: 自增因子, 必须大于 0]
+     * @return: java.lang.Long 返回的是自增后的 value 的值
+     * @author: liuzhichao 2021-05-08 17:31
+     */
+    public Long incr(String key, long delta) {
+        if (delta <= 0) {
+            throw new IllegalArgumentException("delta arg must be greater than zero");
         }
         return stringRedisTemplate.opsForValue().increment(key, delta);
     }
 
     /**
-     * 值递减
-     * @param key 键
-     * @param by  要减少几(小于0)
-     * @return
+     * @description: 将 key 所对应的 value 进行自减, 递减因子为 1
+     * @param: [key]
+     * @return: java.lang.Long 返回的是自减后的 value 的值
+     * @author: liuzhichao 2021-05-08 17:32
      */
-    public Long decr(String key, Long delta) {
-        if (delta < 0) {
-            throw new RuntimeException("递减因子必须大于0");
+    public Long decr(String key) {
+        return stringRedisTemplate.opsForValue().decrement(key);
+    }
+
+    /**
+     * @description: 将 key 所对应的 value 进行自减
+     * @param: [key, delta: 递减因子, 必须大于 0]
+     * @return: java.lang.Long 返回的是自减后的 value 的值
+     * @author: liuzhichao 2021-05-08 17:32
+     */
+    public Long decr(String key, long delta) {
+        if (delta <= 0) {
+            throw new IllegalArgumentException("delta arg must be greater than zero");
         }
-        return stringRedisTemplate.opsForValue().increment(key, -delta);
+        return stringRedisTemplate.opsForValue().decrement(key, delta);
     }
 
     // ================================Map=================================
+
     /**
-     * HashGet
-     * @param key  键 不能为null
-     * @param item 集合元素的key 不能为null
-     * @return 值
+     * @description: 根据 key 和 map 集合中的 hashKey 获取 map 集合中的某个元素
+     * @param: [key: redis 的 key, hashKey: map 集合中的 key]
+     * @return: java.lang.Object
+     * @author: liuzhichao 2021-05-08 17:51
      */
-    public Object hget(String key, String item) {
-        return stringRedisTemplate.opsForHash().get(key, item);
+    public Object hget(String key, String hashKey) {
+        Assert.notNull(key, "redis key can not be null");
+        Assert.notNull(hashKey, "hashMap key can not be null");
+        return stringRedisTemplate.opsForHash().get(key, hashKey);
     }
 
     /**
-     * 获取hashKey对应的所有键值
-     * @param key 键
-     * @return 对应的多个键值
+     * @description: 根据 redis key 获取 Map<String, String> 类型 value
+     * @param: [key]
+     * @return: java.util.Map<java.lang.String, java.lang.String>
+     * @author: liuzhichao 2021-05-11 10:56
      */
     public Map<String, String> hmget(String key) {
-        Map<Object, Object> map = new HashMap<>();
-        map = stringRedisTemplate.opsForHash().entries(key);
-        //将Map<Object, Object>转换为Map<Stirng, String>
+        Assert.notNull(key, "redis key can not be null");
+        Map<Object, Object> map = stringRedisTemplate.opsForHash().entries(key);
+        // 将Map<Object, Object>转换为Map<String, String>
         Map<String, String> result = new HashMap<>();
-        Set<Object> keys=map.keySet();
-        Iterator<Object> it=keys.iterator();
-        while(it.hasNext())
-        {
-            String  itemKey = (String) it.next();
+        Set<Object> keys = map.keySet();
+        Iterator<Object> it = keys.iterator();
+        while (it.hasNext()) {
+            String itemKey = (String) it.next();
             String itemValue = (String) map.get(itemKey);
             result.put(itemKey, itemValue);
         }
@@ -194,12 +198,14 @@ public class RedisCache {
     }
 
     /**
-     * HashSet
-     * @param key 键
-     * @param map 对应多个键值
-     * @return true 成功 false 失败
+     * @description: 存放 map 类型的 value
+     * @param: [key, map]
+     * @return: java.lang.Boolean
+     * @author: liuzhichao 2021-05-11 11:04
      */
     public Boolean hmset(String key, Map<String, String> map) {
+        Assert.notNull(key, "redis key can not be null");
+        Assert.notNull(map, "redis value can not be null");
         try {
             stringRedisTemplate.opsForHash().putAll(key, map);
             return true;
@@ -210,18 +216,20 @@ public class RedisCache {
     }
 
     /**
-     * HashSet 并设置时间
-     * @param key  键
-     * @param map  对应多个键值
-     * @param time 时间(秒)
-     * @return true成功 false失败
+     * @description: 存放 map 类型的 value 并设置超时时间
+     * @param: [key, map, time]
+     * @return: java.lang.Boolean
+     * @author: liuzhichao 2021-05-11 11:11
      */
     public Boolean hmset(String key, Map<String, String> map, Long time) {
+        Assert.notNull(key, "redis key can not be null");
         try {
+            // 标记开启事务
+            stringRedisTemplate.multi();
             stringRedisTemplate.opsForHash().putAll(key, map);
-            if (time > 0) {
-                expire(key, time);
-            }
+            expire(key, time);
+            // 执行事务块中的所有命令
+            stringRedisTemplate.exec();
             return true;
         } catch (Exception e) {
             e.printStackTrace();
@@ -230,15 +238,16 @@ public class RedisCache {
     }
 
     /**
-     * 向一张hash表中放入数据,如果不存在将创建
-     * @param key   键
-     * @param item  项
-     * @param value 值
-     * @return true 成功 false失败
+     * @description: 向 map 中添加单个元素, 已存在则修改, 否则新增
+     * @param: [key, hashKey, value]
+     * @return: java.lang.Boolean
+     * @author: liuzhichao 2021-05-11 11:29
      */
-    public Boolean hset(String key, String item, String value) {
+    public Boolean hset(String key, String hashKey, String value) {
+        Assert.notNull(key, "redis key can not be null");
+        Assert.notNull(hashKey, "hash key can not be null");
         try {
-            stringRedisTemplate.opsForHash().put(key, item, value);
+            stringRedisTemplate.opsForHash().put(key, hashKey, value);
             return true;
         } catch (Exception e) {
             e.printStackTrace();
@@ -247,19 +256,19 @@ public class RedisCache {
     }
 
     /**
-     * 向一张hash表中放入数据,如果不存在将创建
-     * @param key   键
-     * @param item  项
-     * @param value 值
-     * @param time  时间(秒) 注意:如果已存在的hash表有时间,这里将会替换原有的时间
-     * @return true 成功 false失败
+     * @description: 向 map 中添加元素, 有则修改, 没有新增, 可设置超时时间
+     * @param: [key, hashKey, value, time: 如果时间存在则会更新时间]
+     * @return: java.lang.Boolean
+     * @author: liuzhichao 2021-05-11 11:32
      */
-    public Boolean hset(String key, String item, String value, Long time) {
+    public Boolean hset(String key, String hashKey, String value, Long time) {
+        Assert.notNull(key, "redis key can not be null");
+        Assert.notNull(hashKey, "hash key can not be null");
         try {
-            stringRedisTemplate.opsForHash().put(key, item, value);
-            if (time > 0) {
-                expire(key, time);
-            }
+            stringRedisTemplate.multi();
+            stringRedisTemplate.opsForHash().put(key, hashKey, value);
+            expire(key, time);
+            stringRedisTemplate.exec();
             return true;
         } catch (Exception e) {
             e.printStackTrace();
@@ -268,273 +277,240 @@ public class RedisCache {
     }
 
     /**
-     * 删除hash表中的值
-     * @param key  键 不能为null
-     * @param item 项 可以使多个 不能为null
+     * @description: 批量删除 map 的元素
+     * @param: [key, hashKey: 不定长数组, 可多个]
+     * @return: java.lang.Long   返回值为删除的元素的个数
+     * @author: liuzhichao 2021-05-11 11:35
      */
-    public void hdel(String key, String... item) {
-        //将String转为Object
-        Object[] itemObj = item;
-        //方法接收参数为Object...
-        stringRedisTemplate.opsForHash().delete(key, itemObj);
+    public Long hdel(String key, String... hashKey) {
+        Assert.notNull(key, "redis key can not be null");
+        // 将 String 转为 Object
+        Object[] itemObj = hashKey;
+        // 方法接收参数为 Object...
+        return stringRedisTemplate.opsForHash().delete(key, itemObj);
     }
 
     /**
-     * 判断hash表中是否有该项的值
-     * @param key  键 不能为null
-     * @param item 项 不能为null
-     * @return true 存在 false不存在
+     * @description: 判断 map 中是否有某个元素
+     * @param: [key, hashKey]
+     * @return: java.lang.Boolean
+     * @author: liuzhichao 2021-05-11 11:36
      */
-    public Boolean hHasKey(String key, String item) {
-        return stringRedisTemplate.opsForHash().hasKey(key, item);
+    public Boolean hHasKey(String key, String hashKey) {
+        Assert.notNull(key, "redis key can not be null");
+        Assert.notNull(hashKey, "hash key can not be null");
+        return stringRedisTemplate.opsForHash().hasKey(key, hashKey);
     }
 
     /**
-     * hash递增 如果不存在,就会创建一个 并把新增后的值返回
-     * @param key  键
-     * @param item 项
-     * @param by   要增加几(大于0)
-     * @return
+     * @description: hash 值自增, 不存在则创建
+     * @param: [key, hashKey, by]
+     * @return: long 自增后的值
+     * @author: liuzhichao 2021-05-11 11:39
      */
-    public Double hincr(String key, String item, Double by) {
-        return stringRedisTemplate.opsForHash().increment(key, item, by);
+    public long hincre(String key, String hashKey, long delta) {
+        Assert.notNull(key, "redis key can not be null");
+        Assert.notNull(hashKey, "hash key can not be null");
+        return stringRedisTemplate.opsForHash().increment(key, hashKey, delta);
     }
 
     /**
-     * hash递减
-     * @param key  键
-     * @param item 项
-     * @param by   要减少记(小于0)
-     * @return
+     * @description: hash 值递减
+     * @param: [key, hashKey, delta]
+     * @return: long 递减后的值
+     * @author: liuzhichao 2021-05-11 17:30
      */
-    public Double hdecr(String key, String item, Double by) {
-        return stringRedisTemplate.opsForHash().increment(key, item, -by);
+    public long hdecr(String key, String hashKey, long delta) {
+        Assert.notNull(key, "redis key can not be null");
+        Assert.notNull(hashKey, "hash key can not be null");
+        return stringRedisTemplate.opsForHash().increment(key, hashKey, -delta);
     }
 
     // ============================set=============================
+
     /**
-     * 根据key获取Set中的所有值
-     * @param key 键
-     * @return
+     * @description: 根据 key 获取 key 对应的set 中所有的值
+     * @param: [key]
+     * @return: java.util.Set<java.lang.String>
+     * @author: liuzhichao 2021-05-11 17:34
      */
     public Set<String> sGet(String key) {
-        try {
-            return stringRedisTemplate.opsForSet().members(key);
-        } catch (Exception e) {
-            e.printStackTrace();
-            return null;
-        }
+        Assert.notNull(key, "redis key can not be null");
+        return stringRedisTemplate.opsForSet().members(key);
     }
 
     /**
-     * 根据value从一个set中查询,是否存在
-     * @param key   键
-     * @param value 值
-     * @return true 存在 false不存在
+     * @description: 判断 key 对应的 set 集合中有否有 value
+     * @param: [key, value: set 集合中的 value]
+     * @return: java.lang.Boolean
+     * @author: liuzhichao 2021-05-11 17:35
      */
     public Boolean sHasKey(String key, String value) {
-        try {
-            return stringRedisTemplate.opsForSet().isMember(key, value);
-        } catch (Exception e) {
-            e.printStackTrace();
-            return false;
-        }
+        Assert.notNull(key, "redis key can not be null");
+        return stringRedisTemplate.opsForSet().isMember(key, value);
     }
 
     /**
-     * 将数据放入set缓存
-     * @param key    键
-     * @param values 值 可以是多个
-     * @return 成功个数
+     * @description: 将 value 放入 key 对应的 set 集合中
+     * @param: [key, values]
+     * @return: java.lang.Long
+     * @author: liuzhichao 2021-05-11 17:44
      */
     public Long sSet(String key, String... values) {
-        try {
-            return stringRedisTemplate.opsForSet().add(key, values);
-        } catch (Exception e) {
-            e.printStackTrace();
-            return null;
-        }
+        Assert.notNull(key, "redis key can not be null");
+        Assert.notNull(values, "set value can not be null");
+        return stringRedisTemplate.opsForSet().add(key, values);
     }
 
     /**
-     * 将set数据放入缓存
-     * @param key    键
-     * @param time   时间(秒)
-     * @param values 值 可以是多个
-     * @return 成功个数
+     * @description: 将 value 放入 key 对应的 set 集合中
+     * @param: [key, time: 超时时间, values]
+     * @return: java.lang.Long
+     * @author: liuzhichao 2021-05-14 14:20
      */
     public Long sSetAndTime(String key, Long time, String... values) {
-        try {
-            Long count = stringRedisTemplate.opsForSet().add(key, values);
-            if (time > 0)
-                expire(key, time);
-            return count;
-        } catch (Exception e) {
-            e.printStackTrace();
-            return null;
-        }
+        Assert.notNull(key, "redis key can not be null");
+        Assert.notNull(values, "set value can not be null");
+        stringRedisTemplate.multi();
+        Long count = stringRedisTemplate.opsForSet().add(key, values);
+        expire(key, time);
+        stringRedisTemplate.exec();
+        return count;
     }
 
     /**
-     * 获取set缓存的长度
-     * @param key 键
-     * @return
+     * @description: 获取 set 集合中的元素个数
+     * @param: [key]
+     * @return: java.lang.Long
+     * @author: liuzhichao 2021-05-14 14:23
      */
     public Long sGetSetSize(String key) {
-        try {
-            return stringRedisTemplate.opsForSet().size(key);
-        } catch (Exception e) {
-            e.printStackTrace();
-            return null;
-        }
+        Assert.notNull(key, "redis key can not be null");
+        return stringRedisTemplate.opsForSet().size(key);
     }
 
     /**
-     * 移除值为value的
-     * @param key    键
-     * @param values 值 可以是多个
-     * @return 移除的个数
+     * @description: 移除 set 集合中的 value 元素
+     * @param: [key, values]
+     * @return: java.lang.Long
+     * @author: liuzhichao 2021-05-14 14:25
      */
     public Long setRemove(String key, String... values) {
-        try {
-            //将String转换为Object
-            Object[] valuesObj = values;
-            //方法接收参数为Object...
-            Long count = stringRedisTemplate.opsForSet().remove(key, valuesObj);
-            return count;
-        } catch (Exception e) {
-            e.printStackTrace();
-            return null;
-        }
+        //将String转换为Object
+        Object[] valuesObj = values;
+        //方法接收参数为Object...
+        return stringRedisTemplate.opsForSet().remove(key, valuesObj);
     }
 
     // ===============================list=================================
 
     /**
-     * 获取list缓存的内容
-     * @param key   键
-     * @param start 开始
-     * @param end   结束 0 到 -1代表所有值
-     * @return
+     * @description: 获取范围内 list 中的元素
+     * @param: [key, start: 开始下标, end: 结束下标, -1 表示所有]
+     * @return: java.util.List<java.lang.String>
+     * @author: liuzhichao 2021-05-14 14:29
      */
     public List<String> lGet(String key, Long start, Long end) {
-        try {
-            return stringRedisTemplate.opsForList().range(key, start, end);
-        } catch (Exception e) {
-            e.printStackTrace();
-            return null;
-        }
+        Assert.notNull(key, "redis key can not be null");
+        return stringRedisTemplate.opsForList().range(key, start, end);
     }
 
     /**
-     * 获取list缓存的长度
-     * @param key 键
-     * @return
+     * @description: 获取 list 集合的元素的个数
+     * @param: [key]
+     * @return: java.lang.Long
+     * @author: liuzhichao 2021-05-14 14:30
      */
     public Long lGetListSize(String key) {
-        try {
-            return stringRedisTemplate.opsForList().size(key);
-        } catch (Exception e) {
-            e.printStackTrace();
-            return null;
-        }
+        Assert.notNull(key, "redis key can not be null");
+        return stringRedisTemplate.opsForList().size(key);
     }
 
     /**
-     * 通过索引 获取list中的值
-     * @param key   键
-     * @param index 索引 index>=0时， 0 表头，1 第二个元素，依次类推；index<0时，-1，表尾，-2倒数第二个元素，依次类推
-     * @return
+     * @description: 获取 list 结合中的某个元素
+     * @param: [key, index: 索引 index>=0时, 0表头 1第二个元素, 依次类推; index<0时, -1表尾 -2倒数第二个元素, 依次类推]
+     * @return: java.lang.Object
+     * @author: liuzhichao 2021-05-14 14:30
      */
     public Object lGetIndex(String key, Long index) {
-        try {
-            return stringRedisTemplate.opsForList().index(key, index);
-        } catch (Exception e) {
-            e.printStackTrace();
-            return null;
-        }
+        Assert.notNull(key, "redis key can not be null");
+        return stringRedisTemplate.opsForList().index(key, index);
     }
 
     /**
-     * 将list放入缓存
-     * @param key   键
-     * @param value 值
-     * @param time  时间(秒)
-     * @return
+     * @description: 将 value 放入 list, 在 list 尾进行 append 方式添加
+     * @param: [key, value]
+     * @return: java.lang.Boolean
+     * @author: liuzhichao 2021-05-14 15:19
      */
     public Boolean lSet(String key, String value) {
-        try {
-            stringRedisTemplate.opsForList().rightPush(key, value);
+        Assert.notNull(key, "redis key can not be null");
+        Long result = stringRedisTemplate.opsForList().rightPush(key, value);
+        if (result > 0) {
             return true;
-        } catch (Exception e) {
-            e.printStackTrace();
-            return false;
         }
+        return false;
     }
 
     /**
-     * 将list放入缓存
-     * @param key   键
-     * @param value 值
-     * @param time  时间(秒)
-     * @return
+     * @description: 将 value 放入 list, 在 list 尾进行 append 方式添加
+     * @param: [key, value]
+     * @return: java.lang.Boolean
+     * @author: liuzhichao 2021-05-14 15:19
      */
     public Boolean lSet(String key, String value, Long time) {
-        try {
-            stringRedisTemplate.opsForList().rightPush(key, value);
-            if (time > 0)
-                expire(key, time);
+        Assert.notNull(key, "redis key can not be null");
+        stringRedisTemplate.multi();
+        Long result = stringRedisTemplate.opsForList().rightPush(key, value);
+        expire(key, time);
+        stringRedisTemplate.exec();
+        if (result > 0) {
             return true;
-        } catch (Exception e) {
-            e.printStackTrace();
-            return false;
         }
+        return false;
     }
 
     /**
-     * 将list放入缓存
-     * @param key   键
-     * @param value 值
-     * @param time  时间(秒)
-     * @return
+     * @description: 将 value 放入 list, 在 list 尾进行 append 方式添加
+     * @param: [key, value]
+     * @return: java.lang.Boolean
+     * @author: liuzhichao 2021-05-14 15:19
      */
     public Boolean lSet(String key, List<String> value) {
-        try {
-            stringRedisTemplate.opsForList().rightPushAll(key, value);
+        Assert.notNull(key, "redis key can not be null");
+        Long result = stringRedisTemplate.opsForList().rightPushAll(key, value);
+        if (result > 0) {
             return true;
-        } catch (Exception e) {
-            e.printStackTrace();
-            return false;
         }
+        return false;
     }
 
     /**
-     * 将list放入缓存
-     * @param key   键
-     * @param value 值
-     * @param time  时间(秒)
-     * @return
+     * @description: 将 value 放入 list, 在 list 尾进行 append 方式添加
+     * @param: [key, value]
+     * @return: java.lang.Boolean
+     * @author: liuzhichao 2021-05-14 15:19
      */
     public Boolean lSet(String key, List<String> value, Long time) {
-        try {
-            stringRedisTemplate.opsForList().rightPushAll(key, value);
-            if (time > 0)
-                expire(key, time);
+        Assert.notNull(key, "redis key can not be null");
+        stringRedisTemplate.multi();
+        Long result = stringRedisTemplate.opsForList().rightPushAll(key, value);
+        expire(key, time);
+        stringRedisTemplate.exec();
+        if (result > 0) {
             return true;
-        } catch (Exception e) {
-            e.printStackTrace();
-            return false;
         }
+        return false;
     }
 
     /**
-     * 根据索引修改list中的某条数据
-     * @param key   键
-     * @param index 索引
-     * @param value 值
-     * @return
+     * @description: 向某一个下标中放入元素
+     * @param: [key, index, value]
+     * @return: java.lang.Boolean
+     * @author: liuzhichao 2021-05-14 16:11
      */
     public Boolean lUpdateIndex(String key, Long index, String value) {
+        Assert.notNull(key, "redis key can not be null");
         try {
             stringRedisTemplate.opsForList().set(key, index, value);
             return true;
@@ -545,20 +521,14 @@ public class RedisCache {
     }
 
     /**
-     *  移除N个值为value
-     * @param key   键
-     * @param count 移除多少个
-     * @param value 值
-     * @return 移除的个数
+     * @description: 删除列表中第一次出现的 value 的元素
+     * @param: [key, count: >0 从左往右遍历; <0 从右往左遍历; =0 删除所有 value 元素, value]
+     * @return: java.lang.Long
+     * @author: liuzhichao 2021-05-14 16:25
      */
     public Long lRemove(String key, Long count, String value) {
-        try {
-            Long remove = stringRedisTemplate.opsForList().remove(key, count, value);
-            return remove;
-        } catch (Exception e) {
-            e.printStackTrace();
-            return null;
-        }
+        Assert.notNull(key, "redis key can not be null");
+        return stringRedisTemplate.opsForList().remove(key, count, value);
     }
 
 }
