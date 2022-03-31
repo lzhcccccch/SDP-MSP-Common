@@ -12,7 +12,7 @@
     <artifactId>SDP-MSP-Common-Global</artifactId>
 
     <properties>
-        <spring-boot-starter-version>2.2.0.RELEASE</spring-boot-starter-version>
+        <spring-boot-starter-version>2.5.12</spring-boot-starter-version>
     </properties>
 
     <dependencies>
